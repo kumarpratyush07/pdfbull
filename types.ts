@@ -1,4 +1,16 @@
-export type ToolMode = 'home' | 'merge' | 'split' | 'view' | 'compress';
+export type ToolMode = 
+  | 'home' 
+  | 'merge' 
+  | 'split' 
+  | 'view' 
+  | 'compress'
+  | 'pdf-to-word'
+  | 'word-to-pdf'
+  | 'pdf-to-excel'
+  | 'excel-to-pdf'
+  | 'pdf-to-ppt'
+  | 'ppt-to-pdf'
+  | 'pdf-to-image';
 
 export interface UploadedFile {
   id: string;

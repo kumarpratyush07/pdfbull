@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { Layers, AlertCircle, CheckCircle, FileUp, Scissors, Eye, Minimize2 } from 'lucide-react';
+import { Layers, AlertCircle, CheckCircle, Scissors, Eye, Minimize2, FileText, FileSpreadsheet, Presentation, Image, File, Table, MonitorPlay } from 'lucide-react';
 import { ToolMode } from '../types';
 
 interface HeroProps {
@@ -13,29 +13,92 @@ const Hero: React.FC<HeroProps> = ({ mode, onFilesSelect, isProcessing, error })
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
 
-  const isMerge = mode === 'merge';
-  const isSplit = mode === 'split';
-  const isCompress = mode === 'compress';
+  let title, subtitle, icon, acceptType, dropText;
 
-  let title, subtitle, icon;
-
-  if (isMerge) {
-    title = <>Merge your <span className="text-indigo-600 dark:text-indigo-400">PDFs</span> instantly</>;
-    subtitle = "Combine multiple PDF files into one single document. Fast, secure, and completely free.";
-    icon = <Layers className="w-8 h-8 text-indigo-600 dark:text-indigo-400" />;
-  } else if (isSplit) {
-    title = <>Split your <span className="text-indigo-600 dark:text-indigo-400">PDF</span> easily</>;
-    subtitle = "Extract pages from your PDF document. Fast, secure, and completely free.";
-    icon = <Scissors className="w-8 h-8 text-indigo-600 dark:text-indigo-400" />;
-  } else if (isCompress) {
-    title = <>Compress your <span className="text-indigo-600 dark:text-indigo-400">PDF</span> files</>;
-    subtitle = "Reduce PDF file size while maintaining quality. Fast, secure, and completely free.";
-    icon = <Minimize2 className="w-8 h-8 text-indigo-600 dark:text-indigo-400" />;
-  } else {
-    // View
-    title = <>View your <span className="text-indigo-600 dark:text-indigo-400">PDF</span> securely</>;
-    subtitle = "Read and inspect your PDF document directly in your browser. No upload required.";
-    icon = <Eye className="w-8 h-8 text-indigo-600 dark:text-indigo-400" />;
+  switch (mode) {
+    case 'merge':
+      title = <>Merge your <span className="text-indigo-600 dark:text-indigo-400">PDFs</span> instantly</>;
+      subtitle = "Combine multiple PDF files into one single document. Fast, secure, and completely free.";
+      icon = <Layers className="w-8 h-8 text-indigo-600 dark:text-indigo-400" />;
+      acceptType = "application/pdf";
+      dropText = "Click to select PDF files";
+      break;
+    case 'split':
+      title = <>Split your <span className="text-indigo-600 dark:text-indigo-400">PDF</span> easily</>;
+      subtitle = "Extract pages from your PDF document. Fast, secure, and completely free.";
+      icon = <Scissors className="w-8 h-8 text-indigo-600 dark:text-indigo-400" />;
+      acceptType = "application/pdf";
+      dropText = "Click to select a PDF file";
+      break;
+    case 'compress':
+      title = <>Compress your <span className="text-indigo-600 dark:text-indigo-400">PDF</span> files</>;
+      subtitle = "Reduce PDF file size while maintaining quality. Fast, secure, and completely free.";
+      icon = <Minimize2 className="w-8 h-8 text-indigo-600 dark:text-indigo-400" />;
+      acceptType = "application/pdf";
+      dropText = "Click to select a PDF file";
+      break;
+    case 'view':
+      title = <>View your <span className="text-indigo-600 dark:text-indigo-400">PDF</span> securely</>;
+      subtitle = "Read and inspect your PDF document directly in your browser. No upload required.";
+      icon = <Eye className="w-8 h-8 text-indigo-600 dark:text-indigo-400" />;
+      acceptType = "application/pdf";
+      dropText = "Click to select a PDF file";
+      break;
+    case 'pdf-to-image':
+      title = <>Convert <span className="text-purple-600 dark:text-purple-400">PDF</span> to Image</>;
+      subtitle = "Convert pages from your PDF document to high-quality JPG or PNG images.";
+      icon = <Image className="w-8 h-8 text-purple-600 dark:text-purple-400" />;
+      acceptType = "application/pdf";
+      dropText = "Click to select a PDF file";
+      break;
+    case 'pdf-to-word':
+      title = <>Convert <span className="text-blue-600 dark:text-blue-400">PDF</span> to Word</>;
+      subtitle = "Convert your PDF documents to editable Word files.";
+      icon = <FileText className="w-8 h-8 text-blue-600 dark:text-blue-400" />;
+      acceptType = "application/pdf";
+      dropText = "Click to select a PDF file";
+      break;
+    case 'word-to-pdf':
+      title = <>Convert <span className="text-blue-600 dark:text-blue-400">Word</span> to PDF</>;
+      subtitle = "Convert your Word documents (DOC, DOCX) to PDF.";
+      icon = <File className="w-8 h-8 text-blue-600 dark:text-blue-400" />;
+      acceptType = ".doc,.docx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+      dropText = "Click to select a Word file";
+      break;
+    case 'pdf-to-excel':
+      title = <>Convert <span className="text-green-600 dark:text-green-400">PDF</span> to Excel</>;
+      subtitle = "Extract tables from PDF to Excel spreadsheets.";
+      icon = <FileSpreadsheet className="w-8 h-8 text-green-600 dark:text-green-400" />;
+      acceptType = "application/pdf";
+      dropText = "Click to select a PDF file";
+      break;
+    case 'excel-to-pdf':
+      title = <>Convert <span className="text-green-600 dark:text-green-400">Excel</span> to PDF</>;
+      subtitle = "Convert Excel spreadsheets (XLS, XLSX) to PDF.";
+      icon = <Table className="w-8 h-8 text-green-600 dark:text-green-400" />;
+      acceptType = ".xls,.xlsx,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+      dropText = "Click to select an Excel file";
+      break;
+    case 'pdf-to-ppt':
+      title = <>Convert <span className="text-red-600 dark:text-red-400">PDF</span> to PowerPoint</>;
+      subtitle = "Convert PDF documents to PowerPoint presentations.";
+      icon = <Presentation className="w-8 h-8 text-red-600 dark:text-red-400" />;
+      acceptType = "application/pdf";
+      dropText = "Click to select a PDF file";
+      break;
+    case 'ppt-to-pdf':
+      title = <>Convert <span className="text-red-600 dark:text-red-400">PowerPoint</span> to PDF</>;
+      subtitle = "Convert PowerPoint presentations (PPT, PPTX) to PDF.";
+      icon = <MonitorPlay className="w-8 h-8 text-red-600 dark:text-red-400" />;
+      acceptType = ".ppt,.pptx,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation";
+      dropText = "Click to select a PowerPoint file";
+      break;
+    default:
+      title = <>Manage your <span className="text-indigo-600 dark:text-indigo-400">PDFs</span></>;
+      subtitle = "Secure, fast, and free PDF utilities running entirely in your browser.";
+      icon = <Layers className="w-8 h-8 text-indigo-600 dark:text-indigo-400" />;
+      acceptType = "application/pdf";
+      dropText = "Click to select a file";
   }
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -98,8 +161,8 @@ const Hero: React.FC<HeroProps> = ({ mode, onFilesSelect, isProcessing, error })
               type="file" 
               ref={fileInputRef} 
               className="hidden" 
-              accept="application/pdf"
-              multiple={isMerge} // Only allow multiple for merge
+              accept={acceptType}
+              multiple={mode === 'merge'} 
               onChange={handleFileChange}
             />
             
@@ -113,10 +176,10 @@ const Hero: React.FC<HeroProps> = ({ mode, onFilesSelect, isProcessing, error })
             </div>
             
             <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-2">
-              {isProcessing ? 'Processing...' : (isMerge ? 'Click to select PDF files' : 'Click to select a PDF file')}
+              {isProcessing ? 'Processing...' : dropText}
             </h3>
             <p className="text-sm text-slate-500 dark:text-slate-400">
-              {isMerge ? 'or drag and drop multiple files here' : 'or drag and drop a file here'}
+              {mode === 'merge' ? 'or drag and drop multiple files here' : 'or drag and drop a file here'}
             </p>
 
             {error && (
@@ -132,7 +195,7 @@ const Hero: React.FC<HeroProps> = ({ mode, onFilesSelect, isProcessing, error })
               <CheckCircle className="w-4 h-4 text-green-500 dark:text-green-400" />
               <span>100% Client-side</span>
             </div>
-            {isMerge && (
+            {mode === 'merge' && (
               <div className="flex items-center gap-2">
                 <CheckCircle className="w-4 h-4 text-green-500 dark:text-green-400" />
                 <span>No File Limits</span>
