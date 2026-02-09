@@ -1,5 +1,5 @@
-import React from 'react';
-import { Layers, Scissors, ArrowRight, Eye, Minimize2, FileText, FileSpreadsheet, Presentation, Image, File, Table, MonitorPlay } from 'lucide-react';
+import React, { useState } from 'react';
+import { Layers, Scissors, ArrowRight, Eye, Minimize2, FileText, FileSpreadsheet, Presentation, Image, File, Table, MonitorPlay, ChevronDown, ChevronUp } from 'lucide-react';
 import { ToolMode } from '../types';
 
 interface HomeProps {
@@ -7,6 +7,126 @@ interface HomeProps {
 }
 
 const Home: React.FC<HomeProps> = ({ onSelectTool }) => {
+  const [showAllTools, setShowAllTools] = useState(false);
+
+  const tools = [
+    // Most Used (First 4)
+    {
+      id: 'merge',
+      title: 'Merge PDF',
+      desc: 'Combine multiple files into one document.',
+      icon: Layers,
+      color: 'indigo',
+      action: 'Merge'
+    },
+    {
+      id: 'image-to-pdf',
+      title: 'Image to PDF',
+      desc: 'Convert JPG & PNG images to PDF.',
+      icon: Image,
+      color: 'purple',
+      action: 'Convert'
+    },
+    {
+      id: 'compress',
+      title: 'Compress PDF',
+      desc: 'Reduce file size while maintaining quality.',
+      icon: Minimize2,
+      color: 'orange',
+      action: 'Compress'
+    },
+    {
+      id: 'pdf-to-word',
+      title: 'PDF to Word',
+      desc: 'Convert PDF documents to editable Word files.',
+      icon: FileText,
+      color: 'blue',
+      action: 'Convert'
+    },
+    // More Tools
+    {
+      id: 'split',
+      title: 'Split PDF',
+      desc: 'Extract pages or ranges to new files.',
+      icon: Scissors,
+      color: 'pink',
+      action: 'Split'
+    },
+    {
+      id: 'pdf-to-image',
+      title: 'PDF to Image',
+      desc: 'Convert PDF pages to JPG or PNG images.',
+      icon: Image,
+      color: 'purple',
+      action: 'Convert'
+    },
+    {
+      id: 'word-to-pdf',
+      title: 'Word to PDF',
+      desc: 'Convert Word documents (DOC, DOCX) to PDF.',
+      icon: File,
+      color: 'blue',
+      action: 'Convert'
+    },
+    {
+      id: 'pdf-to-excel',
+      title: 'PDF to Excel',
+      desc: 'Convert PDF tables to Excel spreadsheets.',
+      icon: FileSpreadsheet,
+      color: 'green',
+      action: 'Convert'
+    },
+    {
+      id: 'excel-to-pdf',
+      title: 'Excel to PDF',
+      desc: 'Convert Excel spreadsheets (XLS, XLSX) to PDF.',
+      icon: Table,
+      color: 'green',
+      action: 'Convert'
+    },
+    {
+      id: 'pdf-to-ppt',
+      title: 'PDF to Powerpoint',
+      desc: 'Convert PDF documents to PowerPoint slides.',
+      icon: Presentation,
+      color: 'red',
+      action: 'Convert'
+    },
+    {
+      id: 'ppt-to-pdf',
+      title: 'Powerpoint to PDF',
+      desc: 'Convert PowerPoint presentations (PPT, PPTX) to PDF.',
+      icon: MonitorPlay,
+      color: 'red',
+      action: 'Convert'
+    },
+    {
+      id: 'view',
+      title: 'View PDF',
+      desc: 'View PDF documents securely in browser.',
+      icon: Eye,
+      color: 'teal',
+      action: 'View'
+    }
+  ];
+
+  const visibleTools = showAllTools ? tools : tools.slice(0, 4);
+
+  // Helper to get color classes based on color name
+  const getColorClasses = (color: string) => {
+    const map: Record<string, { bg: string, text: string, iconBg: string, hoverBorder: string }> = {
+      indigo: { bg: 'bg-white dark:bg-slate-900', text: 'text-indigo-600 dark:text-indigo-400', iconBg: 'bg-indigo-100 dark:bg-indigo-900/30', hoverBorder: 'hover:border-indigo-500 dark:hover:border-indigo-500' },
+      pink: { bg: 'bg-white dark:bg-slate-900', text: 'text-pink-600 dark:text-pink-400', iconBg: 'bg-pink-100 dark:bg-pink-900/30', hoverBorder: 'hover:border-pink-500 dark:hover:border-pink-500' },
+      orange: { bg: 'bg-white dark:bg-slate-900', text: 'text-orange-600 dark:text-orange-400', iconBg: 'bg-orange-100 dark:bg-orange-900/30', hoverBorder: 'hover:border-orange-500 dark:hover:border-orange-500' },
+      blue: { bg: 'bg-white dark:bg-slate-900', text: 'text-blue-600 dark:text-blue-400', iconBg: 'bg-blue-100 dark:bg-blue-900/30', hoverBorder: 'hover:border-blue-500 dark:hover:border-blue-500' },
+      purple: { bg: 'bg-white dark:bg-slate-900', text: 'text-purple-600 dark:text-purple-400', iconBg: 'bg-purple-100 dark:bg-purple-900/30', hoverBorder: 'hover:border-purple-500 dark:hover:border-purple-500' },
+      green: { bg: 'bg-white dark:bg-slate-900', text: 'text-green-600 dark:text-green-400', iconBg: 'bg-green-100 dark:bg-green-900/30', hoverBorder: 'hover:border-green-500 dark:hover:border-green-500' },
+      red: { bg: 'bg-white dark:bg-slate-900', text: 'text-red-600 dark:text-red-400', iconBg: 'bg-red-100 dark:bg-red-900/30', hoverBorder: 'hover:border-red-500 dark:hover:border-red-500' },
+      teal: { bg: 'bg-white dark:bg-slate-900', text: 'text-teal-600 dark:text-teal-400', iconBg: 'bg-teal-100 dark:bg-teal-900/30', hoverBorder: 'hover:border-teal-500 dark:hover:border-teal-500' },
+    };
+    return map[color] || map['indigo'];
+  };
+
   return (
     <div className="flex-1 flex flex-col justify-center items-center py-20 px-4">
       <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight text-slate-900 dark:text-slate-50 mb-6 text-center">
@@ -16,249 +136,51 @@ const Home: React.FC<HomeProps> = ({ onSelectTool }) => {
         Secure, fast, and free PDF utilities running entirely in your browser.
       </p>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-[90rem] w-full px-4">
-        {/* Merge Tile */}
-        <div 
-          onClick={() => onSelectTool('merge')}
-          className="group relative bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-xl hover:shadow-2xl hover:border-indigo-500 dark:hover:border-indigo-500 transition-all duration-300 cursor-pointer overflow-hidden flex flex-col"
-        >
-          <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-            <Layers className="w-32 h-32 text-indigo-600 dark:text-indigo-400 transform translate-x-8 -translate-y-8" />
-          </div>
-          <div className="relative z-10 flex-1 flex flex-col">
-            <div className="w-14 h-14 bg-indigo-100 dark:bg-indigo-900/30 rounded-2xl flex items-center justify-center mb-6 text-indigo-600 dark:text-indigo-400 group-hover:scale-110 transition-transform duration-300">
-              <Layers className="w-7 h-7" />
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-[90rem] w-full px-4 mb-12">
+        {visibleTools.map((tool) => {
+          const style = getColorClasses(tool.color);
+          const Icon = tool.icon;
+          
+          return (
+            <div 
+              key={tool.id}
+              onClick={() => onSelectTool(tool.id as ToolMode)}
+              className={`group relative ${style.bg} rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-xl hover:shadow-2xl ${style.hoverBorder} transition-all duration-300 cursor-pointer overflow-hidden flex flex-col animate-in fade-in zoom-in duration-300`}
+            >
+              <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                <Icon className={`w-32 h-32 ${style.text} transform translate-x-8 -translate-y-8`} />
+              </div>
+              <div className="relative z-10 flex-1 flex flex-col">
+                <div className={`w-14 h-14 ${style.iconBg} rounded-2xl flex items-center justify-center mb-6 ${style.text} group-hover:scale-110 transition-transform duration-300`}>
+                  <Icon className="w-7 h-7" />
+                </div>
+                <h3 className="text-xl font-bold text-slate-900 dark:text-slate-50 mb-2">{tool.title}</h3>
+                <p className="text-sm text-slate-600 dark:text-slate-400 mb-6 flex-1">
+                  {tool.desc}
+                </p>
+                <div className={`flex items-center text-sm ${style.text} font-semibold group-hover:translate-x-2 transition-transform`}>
+                  {tool.action} <ArrowRight className="w-4 h-4 ml-1" />
+                </div>
+              </div>
             </div>
-            <h3 className="text-xl font-bold text-slate-900 dark:text-slate-50 mb-2">Merge PDF</h3>
-            <p className="text-sm text-slate-600 dark:text-slate-400 mb-6 flex-1">
-              Combine multiple files into one document.
-            </p>
-            <div className="flex items-center text-sm text-indigo-600 dark:text-indigo-400 font-semibold group-hover:translate-x-2 transition-transform">
-              Merge <ArrowRight className="w-4 h-4 ml-1" />
-            </div>
-          </div>
-        </div>
-
-        {/* Split Tile */}
-        <div 
-          onClick={() => onSelectTool('split')}
-          className="group relative bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-xl hover:shadow-2xl hover:border-indigo-500 dark:hover:border-indigo-500 transition-all duration-300 cursor-pointer overflow-hidden flex flex-col"
-        >
-          <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-            <Scissors className="w-32 h-32 text-indigo-600 dark:text-indigo-400 transform translate-x-8 -translate-y-8" />
-          </div>
-          <div className="relative z-10 flex-1 flex flex-col">
-            <div className="w-14 h-14 bg-pink-100 dark:bg-pink-900/30 rounded-2xl flex items-center justify-center mb-6 text-pink-600 dark:text-pink-400 group-hover:scale-110 transition-transform duration-300">
-              <Scissors className="w-7 h-7" />
-            </div>
-            <h3 className="text-xl font-bold text-slate-900 dark:text-slate-50 mb-2">Split PDF</h3>
-            <p className="text-sm text-slate-600 dark:text-slate-400 mb-6 flex-1">
-              Extract pages or ranges to new files.
-            </p>
-            <div className="flex items-center text-sm text-pink-600 dark:text-pink-400 font-semibold group-hover:translate-x-2 transition-transform">
-              Split <ArrowRight className="w-4 h-4 ml-1" />
-            </div>
-          </div>
-        </div>
-
-        {/* Compress Tile */}
-        <div 
-          onClick={() => onSelectTool('compress')}
-          className="group relative bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-xl hover:shadow-2xl hover:border-indigo-500 dark:hover:border-indigo-500 transition-all duration-300 cursor-pointer overflow-hidden flex flex-col"
-        >
-          <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-            <Minimize2 className="w-32 h-32 text-indigo-600 dark:text-indigo-400 transform translate-x-8 -translate-y-8" />
-          </div>
-          <div className="relative z-10 flex-1 flex flex-col">
-            <div className="w-14 h-14 bg-orange-100 dark:bg-orange-900/30 rounded-2xl flex items-center justify-center mb-6 text-orange-600 dark:text-orange-400 group-hover:scale-110 transition-transform duration-300">
-              <Minimize2 className="w-7 h-7" />
-            </div>
-            <h3 className="text-xl font-bold text-slate-900 dark:text-slate-50 mb-2">Compress PDF</h3>
-            <p className="text-sm text-slate-600 dark:text-slate-400 mb-6 flex-1">
-              Reduce file size while maintaining quality.
-            </p>
-            <div className="flex items-center text-sm text-orange-600 dark:text-orange-400 font-semibold group-hover:translate-x-2 transition-transform">
-              Compress <ArrowRight className="w-4 h-4 ml-1" />
-            </div>
-          </div>
-        </div>
-
-        {/* PDF to Image */}
-        <div 
-          onClick={() => onSelectTool('pdf-to-image')}
-          className="group relative bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-xl hover:shadow-2xl hover:border-purple-500 dark:hover:border-purple-500 transition-all duration-300 cursor-pointer overflow-hidden flex flex-col"
-        >
-          <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-            <Image className="w-32 h-32 text-purple-600 dark:text-purple-400 transform translate-x-8 -translate-y-8" />
-          </div>
-          <div className="relative z-10 flex-1 flex flex-col">
-            <div className="w-14 h-14 bg-purple-100 dark:bg-purple-900/30 rounded-2xl flex items-center justify-center mb-6 text-purple-600 dark:text-purple-400 group-hover:scale-110 transition-transform duration-300">
-              <Image className="w-7 h-7" />
-            </div>
-            <h3 className="text-xl font-bold text-slate-900 dark:text-slate-50 mb-2">PDF to Image</h3>
-            <p className="text-sm text-slate-600 dark:text-slate-400 mb-6 flex-1">
-              Convert PDF pages to JPG or PNG images.
-            </p>
-            <div className="flex items-center text-sm text-purple-600 dark:text-purple-400 font-semibold group-hover:translate-x-2 transition-transform">
-              Convert <ArrowRight className="w-4 h-4 ml-1" />
-            </div>
-          </div>
-        </div>
-
-        {/* PDF to Word */}
-        <div 
-          onClick={() => onSelectTool('pdf-to-word')}
-          className="group relative bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-xl hover:shadow-2xl hover:border-blue-500 dark:hover:border-blue-500 transition-all duration-300 cursor-pointer overflow-hidden flex flex-col"
-        >
-          <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-            <FileText className="w-32 h-32 text-blue-600 dark:text-blue-400 transform translate-x-8 -translate-y-8" />
-          </div>
-          <div className="relative z-10 flex-1 flex flex-col">
-            <div className="w-14 h-14 bg-blue-100 dark:bg-blue-900/30 rounded-2xl flex items-center justify-center mb-6 text-blue-600 dark:text-blue-400 group-hover:scale-110 transition-transform duration-300">
-              <FileText className="w-7 h-7" />
-            </div>
-            <h3 className="text-xl font-bold text-slate-900 dark:text-slate-50 mb-2">PDF to Word</h3>
-            <p className="text-sm text-slate-600 dark:text-slate-400 mb-6 flex-1">
-              Convert PDF documents to editable Word files.
-            </p>
-            <div className="flex items-center text-sm text-blue-600 dark:text-blue-400 font-semibold group-hover:translate-x-2 transition-transform">
-              Convert <ArrowRight className="w-4 h-4 ml-1" />
-            </div>
-          </div>
-        </div>
-
-        {/* Word to PDF */}
-        <div 
-          onClick={() => onSelectTool('word-to-pdf')}
-          className="group relative bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-xl hover:shadow-2xl hover:border-blue-500 dark:hover:border-blue-500 transition-all duration-300 cursor-pointer overflow-hidden flex flex-col"
-        >
-          <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-            <File className="w-32 h-32 text-blue-600 dark:text-blue-400 transform translate-x-8 -translate-y-8" />
-          </div>
-          <div className="relative z-10 flex-1 flex flex-col">
-            <div className="w-14 h-14 bg-blue-100 dark:bg-blue-900/30 rounded-2xl flex items-center justify-center mb-6 text-blue-600 dark:text-blue-400 group-hover:scale-110 transition-transform duration-300">
-              <File className="w-7 h-7" />
-            </div>
-            <h3 className="text-xl font-bold text-slate-900 dark:text-slate-50 mb-2">Word to PDF</h3>
-            <p className="text-sm text-slate-600 dark:text-slate-400 mb-6 flex-1">
-              Convert Word documents (DOC, DOCX) to PDF.
-            </p>
-            <div className="flex items-center text-sm text-blue-600 dark:text-blue-400 font-semibold group-hover:translate-x-2 transition-transform">
-              Convert <ArrowRight className="w-4 h-4 ml-1" />
-            </div>
-          </div>
-        </div>
-
-        {/* PDF to Excel */}
-        <div 
-          onClick={() => onSelectTool('pdf-to-excel')}
-          className="group relative bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-xl hover:shadow-2xl hover:border-green-500 dark:hover:border-green-500 transition-all duration-300 cursor-pointer overflow-hidden flex flex-col"
-        >
-          <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-            <FileSpreadsheet className="w-32 h-32 text-green-600 dark:text-green-400 transform translate-x-8 -translate-y-8" />
-          </div>
-          <div className="relative z-10 flex-1 flex flex-col">
-            <div className="w-14 h-14 bg-green-100 dark:bg-green-900/30 rounded-2xl flex items-center justify-center mb-6 text-green-600 dark:text-green-400 group-hover:scale-110 transition-transform duration-300">
-              <FileSpreadsheet className="w-7 h-7" />
-            </div>
-            <h3 className="text-xl font-bold text-slate-900 dark:text-slate-50 mb-2">PDF to Excel</h3>
-            <p className="text-sm text-slate-600 dark:text-slate-400 mb-6 flex-1">
-              Convert PDF tables to Excel spreadsheets.
-            </p>
-            <div className="flex items-center text-sm text-green-600 dark:text-green-400 font-semibold group-hover:translate-x-2 transition-transform">
-              Convert <ArrowRight className="w-4 h-4 ml-1" />
-            </div>
-          </div>
-        </div>
-
-        {/* Excel to PDF (Changed Icon to Table) */}
-        <div 
-          onClick={() => onSelectTool('excel-to-pdf')}
-          className="group relative bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-xl hover:shadow-2xl hover:border-green-500 dark:hover:border-green-500 transition-all duration-300 cursor-pointer overflow-hidden flex flex-col"
-        >
-          <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-            <Table className="w-32 h-32 text-green-600 dark:text-green-400 transform translate-x-8 -translate-y-8" />
-          </div>
-          <div className="relative z-10 flex-1 flex flex-col">
-            <div className="w-14 h-14 bg-green-100 dark:bg-green-900/30 rounded-2xl flex items-center justify-center mb-6 text-green-600 dark:text-green-400 group-hover:scale-110 transition-transform duration-300">
-              <Table className="w-7 h-7" />
-            </div>
-            <h3 className="text-xl font-bold text-slate-900 dark:text-slate-50 mb-2">Excel to PDF</h3>
-            <p className="text-sm text-slate-600 dark:text-slate-400 mb-6 flex-1">
-              Convert Excel spreadsheets (XLS, XLSX) to PDF.
-            </p>
-            <div className="flex items-center text-sm text-green-600 dark:text-green-400 font-semibold group-hover:translate-x-2 transition-transform">
-              Convert <ArrowRight className="w-4 h-4 ml-1" />
-            </div>
-          </div>
-        </div>
-
-        {/* PDF to PowerPoint */}
-        <div 
-          onClick={() => onSelectTool('pdf-to-ppt')}
-          className="group relative bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-xl hover:shadow-2xl hover:border-red-500 dark:hover:border-red-500 transition-all duration-300 cursor-pointer overflow-hidden flex flex-col"
-        >
-          <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-            <Presentation className="w-32 h-32 text-red-600 dark:text-red-400 transform translate-x-8 -translate-y-8" />
-          </div>
-          <div className="relative z-10 flex-1 flex flex-col">
-            <div className="w-14 h-14 bg-red-100 dark:bg-red-900/30 rounded-2xl flex items-center justify-center mb-6 text-red-600 dark:text-red-400 group-hover:scale-110 transition-transform duration-300">
-              <Presentation className="w-7 h-7" />
-            </div>
-            <h3 className="text-xl font-bold text-slate-900 dark:text-slate-50 mb-2">PDF to Powerpoint</h3>
-            <p className="text-sm text-slate-600 dark:text-slate-400 mb-6 flex-1">
-              Convert PDF documents to PowerPoint slides.
-            </p>
-            <div className="flex items-center text-sm text-red-600 dark:text-red-400 font-semibold group-hover:translate-x-2 transition-transform">
-              Convert <ArrowRight className="w-4 h-4 ml-1" />
-            </div>
-          </div>
-        </div>
-
-        {/* PowerPoint to PDF (Changed Icon to MonitorPlay) */}
-        <div 
-          onClick={() => onSelectTool('ppt-to-pdf')}
-          className="group relative bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-xl hover:shadow-2xl hover:border-red-500 dark:hover:border-red-500 transition-all duration-300 cursor-pointer overflow-hidden flex flex-col"
-        >
-          <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-            <MonitorPlay className="w-32 h-32 text-red-600 dark:text-red-400 transform translate-x-8 -translate-y-8" />
-          </div>
-          <div className="relative z-10 flex-1 flex flex-col">
-            <div className="w-14 h-14 bg-red-100 dark:bg-red-900/30 rounded-2xl flex items-center justify-center mb-6 text-red-600 dark:text-red-400 group-hover:scale-110 transition-transform duration-300">
-              <MonitorPlay className="w-7 h-7" />
-            </div>
-            <h3 className="text-xl font-bold text-slate-900 dark:text-slate-50 mb-2">Powerpoint to PDF</h3>
-            <p className="text-sm text-slate-600 dark:text-slate-400 mb-6 flex-1">
-              Convert PowerPoint presentations (PPT, PPTX) to PDF.
-            </p>
-            <div className="flex items-center text-sm text-red-600 dark:text-red-400 font-semibold group-hover:translate-x-2 transition-transform">
-              Convert <ArrowRight className="w-4 h-4 ml-1" />
-            </div>
-          </div>
-        </div>
-
-        {/* View Tile */}
-        <div 
-          onClick={() => onSelectTool('view')}
-          className="group relative bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-xl hover:shadow-2xl hover:border-indigo-500 dark:hover:border-indigo-500 transition-all duration-300 cursor-pointer overflow-hidden flex flex-col"
-        >
-          <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-            <Eye className="w-32 h-32 text-indigo-600 dark:text-indigo-400 transform translate-x-8 -translate-y-8" />
-          </div>
-          <div className="relative z-10 flex-1 flex flex-col">
-            <div className="w-14 h-14 bg-teal-100 dark:bg-teal-900/30 rounded-2xl flex items-center justify-center mb-6 text-teal-600 dark:text-teal-400 group-hover:scale-110 transition-transform duration-300">
-              <Eye className="w-7 h-7" />
-            </div>
-            <h3 className="text-xl font-bold text-slate-900 dark:text-slate-50 mb-2">View PDF</h3>
-            <p className="text-sm text-slate-600 dark:text-slate-400 mb-6 flex-1">
-              View PDF documents securely in browser.
-            </p>
-            <div className="flex items-center text-sm text-teal-600 dark:text-teal-400 font-semibold group-hover:translate-x-2 transition-transform">
-              View <ArrowRight className="w-4 h-4 ml-1" />
-            </div>
-          </div>
-        </div>
+          );
+        })}
       </div>
+
+      <button
+        onClick={() => setShowAllTools(!showAllTools)}
+        className="flex items-center gap-2 px-8 py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-full text-slate-700 dark:text-slate-200 font-medium hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors shadow-sm"
+      >
+        {showAllTools ? (
+          <>
+            Show Less <ChevronUp className="w-4 h-4" />
+          </>
+        ) : (
+          <>
+            More Tools <ChevronDown className="w-4 h-4" />
+          </>
+        )}
+      </button>
     </div>
   );
 };

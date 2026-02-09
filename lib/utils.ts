@@ -116,3 +116,7 @@ export const parseSplitRanges = (rangeInput: string, maxPages: number): number[]
 
   return fileGroups;
 };
+
+export function cn(...classes: (string | undefined | null | false)[]) {
+  return classes.filter(Boolean).join(' ');
+}

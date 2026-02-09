@@ -1,3 +1,4 @@
+
 export type ToolMode = 
   | 'home' 
   | 'merge' 
@@ -10,7 +11,8 @@ export type ToolMode =
   | 'excel-to-pdf'
   | 'pdf-to-ppt'
   | 'ppt-to-pdf'
-  | 'pdf-to-image';
+  | 'pdf-to-image'
+  | 'image-to-pdf';
 
 export interface UploadedFile {
   id: string;

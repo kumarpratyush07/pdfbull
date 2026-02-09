@@ -9,10 +9,26 @@ declare global {
       PDFPage: any;
       StandardFonts: any;
       rgb: any;
+      PageSizes: any;
     };
     pdfjsLib: any;
     JSZip: any;
   }
+}
+
+interface DocContentItem {
+  type: 'text' | 'image';
+  y: number; // Vertical position
+  x: number; // Horizontal position
+  text?: string;
+  imageData?: ArrayBuffer; // For images
+  width?: number; // In points for image, or text width
+  height?: number; // In points
+  extension?: string;
+  fontSize?: number;
+  isBold?: boolean;
+  isItalic?: boolean;
+  relId?: string; // For images in docx generation
 }
 
 /**
@@ -72,7 +88,8 @@ const sanitizePdfWithPdfJs = async (
   const { PDFDocument } = window.PDFLib;
   const pdfjs = window.pdfjsLib;
 
-  const loadingTask = pdfjs.getDocument({ data: fileData, password: password });
+  // Clone data to avoid detached buffer errors
+  const loadingTask = pdfjs.getDocument({ data: fileData.slice(), password: password });
   let pdfjsDoc = await loadingTask.promise;
   const numPages = pdfjsDoc.numPages;
   const newPdf = await PDFDocument.create();
@@ -245,7 +262,9 @@ export const compressPdf = async (
 
   const { PDFDocument } = window.PDFLib;
   const pdfjs = window.pdfjsLib;
-  const loadingTask = pdfjs.getDocument({ data: file.data, password: file.password });
+  
+  // Clone data to avoid detached buffer errors
+  const loadingTask = pdfjs.getDocument({ data: file.data.slice(), password: file.password });
   const pdfjsDoc = await loadingTask.promise;
   const numPages = pdfjsDoc.numPages;
   const newPdf = await PDFDocument.create();
@@ -279,18 +298,262 @@ export const compressPdf = async (
 };
 
 /**
- * Generates a valid minimal .docx file containing the provided text paragraphs.
+ * Cleans string for XML validity.
  */
-const createDocxFromText = async (paragraphs: string[]): Promise<Blob> => {
+const cleanXmlString = (str: string) => {
+  return str.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, '');
+};
+
+/**
+ * Extracts content (text and images) from a PDF file.
+ */
+const extractContentFromPdf = async (
+  fileData: Uint8Array, 
+  password?: string,
+  onProgress?: (percent: number) => void
+): Promise<DocContentItem[]> => {
+  if (!window.pdfjsLib) throw new Error("PDF.js not loaded");
+  
+  // Clone data to avoid detached buffer errors
+  const loadingTask = window.pdfjsLib.getDocument({ data: fileData.slice(), password: password });
+  const pdf = await loadingTask.promise;
+  const numPages = pdf.numPages;
+  const OPS = window.pdfjsLib.OPS;
+  
+  let allItems: DocContentItem[] = [];
+
+  for (let i = 1; i <= numPages; i++) {
+    if (onProgress) onProgress(Math.round((i / numPages) * 100));
+    const page = await pdf.getPage(i);
+    
+    // 1. Text Extraction
+    const textContent = await page.getTextContent();
+    const styles = textContent.styles;
+
+    const pageTextItems: DocContentItem[] = textContent.items.map((item: any) => {
+      const tx = item.transform;
+      // Estimate font size from Y scale
+      const fontSize = Math.sqrt(tx[2] * tx[2] + tx[3] * tx[3]); 
+      
+      let isBold = false;
+      let isItalic = false;
+      
+      if (item.fontName && styles[item.fontName]) {
+        const fontData = styles[item.fontName];
+        const name = (fontData.fontFamily || fontData.name || "").toLowerCase();
+        if (name.includes('bold') || name.includes('black') || name.includes('heavy')) isBold = true;
+        if (name.includes('italic') || name.includes('oblique')) isItalic = true;
+      }
+
+      return {
+        type: 'text',
+        str: item.str, 
+        text: item.str,
+        x: tx[4],
+        y: tx[5],
+        width: item.width,
+        h: item.height || 0,
+        fontSize: fontSize,
+        isBold,
+        isItalic
+      };
+    }).filter((t: any) => t.text.trim().length > 0);
+
+    // 2. Image Extraction
+    let pageImageItems: DocContentItem[] = [];
+    
+    try {
+        const ops = await page.getOperatorList();
+        
+        let transformStack: number[][] = [];
+        let currentMatrix = [1, 0, 0, 1, 0, 0]; // Identity
+
+        for (let j = 0; j < ops.fnArray.length; j++) {
+          const fn = ops.fnArray[j];
+          const args = ops.argsArray[j];
+          
+          if (fn === OPS.save) {
+            transformStack.push([...currentMatrix]);
+          } else if (fn === OPS.restore) {
+            if (transformStack.length > 0) currentMatrix = transformStack.pop()!;
+          } else if (fn === OPS.transform) {
+            const m = args;
+            const [a1, b1, c1, d1, e1, f1] = currentMatrix;
+            const [a2, b2, c2, d2, e2, f2] = m;
+            
+            currentMatrix = [
+              a1 * a2 + c1 * b2,
+              b1 * a2 + d1 * b2,
+              a1 * c2 + c1 * d2,
+              b1 * c2 + d1 * d2,
+              a1 * e2 + c1 * f2 + e1,
+              b1 * e2 + d1 * f2 + f1
+            ];
+          } else if (fn === OPS.paintImageXObject || fn === OPS.paintJpegXObject || fn === OPS.paintInlineImageXObject) {
+            
+            let imgObj: any = null;
+            
+            // Inline image (args[0] is the dict/image)
+            if (fn === OPS.paintInlineImageXObject) {
+                imgObj = args[0];
+            } else {
+                // XObject (args[0] is name)
+                const imgName = args[0];
+                try {
+                    imgObj = await page.objs.get(imgName);
+                } catch(e) { console.warn("Could not get image obj", imgName); }
+            }
+
+            if (imgObj) {
+                // Determine width/height
+                const w = imgObj.width;
+                const h = imgObj.height;
+                
+                if (w && h) {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = w;
+                    canvas.height = h;
+                    const ctx = canvas.getContext('2d');
+                    
+                    if (ctx) {
+                        // Draw logic based on type
+                        // Note: If imgObj is an inline dict, PDF.js might not support drawing it directly to canvas via drawImage
+                        // But usually page.objs.get returns a drawable element (Image/Canvas).
+                        // For inline images, PDF.js usually converts them to something usable or we might need `page.commonObjs`.
+                        
+                        try {
+                            ctx.drawImage(imgObj as any, 0, 0);
+                            const blob = await new Promise<Blob | null>(r => canvas.toBlob(r, 'image/png'));
+                            if (blob) {
+                                const buf = await blob.arrayBuffer();
+                                
+                                // Calculate PDF dimensions from matrix
+                                // Scale factors
+                                const scaleW = Math.sqrt(currentMatrix[0] * currentMatrix[0] + currentMatrix[1] * currentMatrix[1]);
+                                const scaleH = Math.sqrt(currentMatrix[2] * currentMatrix[2] + currentMatrix[3] * currentMatrix[3]);
+                                
+                                // Position
+                                const yPos = currentMatrix[5]; 
+                                const xPos = currentMatrix[4];
+
+                                pageImageItems.push({
+                                  type: 'image',
+                                  imageData: buf,
+                                  extension: 'png',
+                                  y: yPos,
+                                  x: xPos,
+                                  width: scaleW,
+                                  height: scaleH
+                                });
+                            }
+                        } catch (drawErr) {
+                           // Fallback or ignore if not drawable
+                        }
+                    }
+                }
+            }
+          }
+        }
+    } catch (e) {
+        console.warn("Error processing operators for page", i, e);
+    }
+
+    // Combine, Sort
+    const pageItems = [...pageTextItems, ...pageImageItems].sort((a: any, b: any) => {
+      const yDiff = b.y - a.y; // Descending Y (Top to Bottom)
+      if (Math.abs(yDiff) < 5) return a.x - b.x; // Left to right
+      return yDiff;
+    });
+
+    // Merge adjacent text items if they share style and line
+    let currentItem: DocContentItem | null = null;
+    
+    pageItems.forEach((item: any) => {
+      if (!currentItem) {
+        currentItem = item;
+        return;
+      }
+
+      let merged = false;
+      if (currentItem.type === 'text' && item.type === 'text') {
+         const yDiff = Math.abs(currentItem.y - item.y);
+         const sameStyle = (
+             Math.abs((currentItem.fontSize || 0) - (item.fontSize || 0)) < 2 &&
+             currentItem.isBold === item.isBold &&
+             currentItem.isItalic === item.isItalic
+         );
+
+         if (yDiff < 4 && sameStyle) {
+             // Append text
+             const prevEnd = (currentItem.x || 0) + (currentItem.width || 0);
+             const gap = item.x - prevEnd;
+             
+             // Simple heuristic for space
+             let separator = "";
+             if (gap > (currentItem.fontSize || 10) * 0.2) { 
+                 if (!currentItem.text?.endsWith(" ") && !item.text?.startsWith(" ")) {
+                     separator = " ";
+                 }
+             }
+             
+             currentItem.text += separator + item.text;
+             // Update dimensions to include new item
+             currentItem.width = (currentItem.width || 0) + gap + (item.width || 0);
+             merged = true;
+         }
+      }
+
+      if (!merged) {
+        allItems.push(currentItem);
+        currentItem = item;
+      }
+    });
+
+    if (currentItem) {
+        allItems.push(currentItem);
+    }
+  }
+
+  return allItems;
+};
+
+/**
+ * Generates a DOCX file from extracted content (text + images).
+ */
+const createDocxFromContent = async (items: DocContentItem[]): Promise<Blob> => {
   if (!window.JSZip) throw new Error("JSZip not loaded");
   const zip = new window.JSZip();
+
+  let mediaIdCounter = 1;
+  const imageRels: { id: string, target: string }[] = [];
+
+  // Add images to zip
+  const mediaFolder = zip.folder("word/media");
+  
+  const processedItems = await Promise.all(items.map(async (item) => {
+    if (item.type === 'image' && item.imageData) {
+       const id = `rIdImg${mediaIdCounter++}`;
+       const fileName = `image${mediaIdCounter}.${item.extension}`;
+       
+       // Handle ArrayBuffer for JSZip
+       mediaFolder?.file(fileName, item.imageData);
+       
+       imageRels.push({ id, target: `media/${fileName}` });
+       return { ...item, relId: id };
+    }
+    return item;
+  }));
 
   // 1. [Content_Types].xml
   const contentTypes = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
   <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
   <Default Extension="xml" ContentType="application/xml"/>
+  <Default Extension="png" ContentType="image/png"/>
+  <Default Extension="jpeg" ContentType="image/jpeg"/>
+  <Default Extension="jpg" ContentType="image/jpeg"/>
   <Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+  <Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>
 </Types>`;
   zip.file("[Content_Types].xml", contentTypes);
 
@@ -302,66 +565,143 @@ const createDocxFromText = async (paragraphs: string[]): Promise<Blob> => {
   zip.folder("_rels")?.file(".rels", rels);
 
   // 3. word/_rels/document.xml.rels
-  const docRels = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+  let docRels = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
-</Relationships>`;
+  <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>`;
+  
+  imageRels.forEach(rel => {
+    docRels += `<Relationship Id="${rel.id}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="${rel.target}"/>`;
+  });
+  docRels += `</Relationships>`;
   zip.folder("word")?.folder("_rels")?.file("document.xml.rels", docRels);
 
-  // 4. word/document.xml (Content)
+  // 4. word/styles.xml
+  const stylesXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:docDefaults>
+    <w:rPrDefault>
+      <w:rPr>
+        <w:rFonts w:ascii="Calibri" w:hAnsi="Calibri" w:eastAsia="Calibri" w:cs="Times New Roman"/>
+        <w:sz w:val="24"/>
+        <w:szCs w:val="24"/>
+        <w:lang w:val="en-US" w:eastAsia="en-US" w:bidi="ar-SA"/>
+      </w:rPr>
+    </w:rPrDefault>
+    <w:pPrDefault/>
+  </w:docDefaults>
+  <w:style w:type="paragraph" w:styleId="Normal" w:default="1">
+    <w:name w:val="Normal"/>
+    <w:qFormat/>
+  </w:style>
+</w:styles>`;
+  zip.folder("word")?.file("styles.xml", stylesXml);
+
+  // 5. word/document.xml (Content)
   let bodyContent = '';
-  paragraphs.forEach(para => {
-    // Escape XML characters
-    const safeText = para
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&apos;');
-      
-    bodyContent += `<w:p><w:r><w:t>${safeText}</w:t></w:r></w:p>`;
+  
+  // Group into paragraphs based on Y coordinate
+  let currentY = processedItems[0]?.y;
+  let currentParaContent = '';
+
+  const flushParagraph = () => {
+    if (currentParaContent) {
+      bodyContent += `<w:p><w:pPr><w:pStyle w:val="Normal"/></w:pPr>${currentParaContent}</w:p>`;
+      currentParaContent = '';
+    }
+  };
+
+  processedItems.forEach((item: any) => {
+     // Determine if new paragraph
+     const yDiff = Math.abs(item.y - currentY);
+     if (yDiff > 10) {
+        flushParagraph();
+        currentY = item.y;
+     }
+
+     if (item.type === 'text' && item.text) {
+        const cleanPara = cleanXmlString(item.text);
+        const safeText = cleanPara
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&apos;');
+        
+        const fontSizeHalfPts = Math.round((item.fontSize || 11) * 2);
+        
+        const rPr = `
+          <w:rPr>
+            ${item.isBold ? '<w:b/>' : ''}
+            ${item.isItalic ? '<w:i/>' : ''}
+            <w:sz w:val="${fontSizeHalfPts}"/>
+            <w:szCs w:val="${fontSizeHalfPts}"/>
+          </w:rPr>
+        `;
+
+        currentParaContent += `<w:r>${rPr}<w:t xml:space="preserve">${safeText}</w:t></w:r>`;
+
+    } else if (item.type === 'image' && item.relId) {
+        // Safe conversions
+        let cx = Math.round((item.width || 200) * 12700);
+        let cy = Math.round((item.height || 200) * 12700);
+        
+        // Safety: Clamp max dimensions to prevent broken Word docs
+        // Approx 20 inches max width/height
+        const MAX_EMU = 20 * 914400; 
+        if (cx > MAX_EMU) cx = MAX_EMU;
+        if (cy > MAX_EMU) cy = MAX_EMU;
+        if (cx < 0) cx = 1000;
+        if (cy < 0) cy = 1000;
+        
+        currentParaContent += `<w:r>
+            <w:drawing>
+              <wp:inline distT="0" distB="0" distL="0" distR="0">
+                <wp:extent cx="${cx}" cy="${cy}"/>
+                <wp:effectExtent l="0" t="0" r="0" b="0"/>
+                <wp:docPr id="${mediaIdCounter}" name="Picture ${mediaIdCounter}"/>
+                <wp:cNvGraphicFramePr>
+                  <a:graphicFrameLocks xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" noChangeAspect="1"/>
+                </wp:cNvGraphicFramePr>
+                <a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">
+                  <a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture">
+                    <pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture">
+                      <pic:nvPicPr>
+                        <pic:cNvPr id="${mediaIdCounter}" name="Picture"/>
+                        <pic:cNvPicPr/>
+                      </pic:nvPicPr>
+                      <pic:blipFill>
+                        <a:blip r:embed="${item.relId}"/>
+                        <a:stretch>
+                          <a:fillRect/>
+                        </a:stretch>
+                      </pic:blipFill>
+                      <pic:spPr>
+                        <a:xfrm>
+                          <a:off x="0" y="0"/>
+                          <a:ext cx="${cx}" cy="${cy}"/>
+                        </a:xfrm>
+                        <a:prstGeom prst="rect">
+                          <a:avLst/>
+                        </a:prstGeom>
+                      </pic:spPr>
+                    </pic:pic>
+                  </a:graphicData>
+                </a:graphic>
+              </wp:inline>
+            </w:drawing>
+          </w:r>`;
+    }
   });
 
+  flushParagraph();
+
   const documentXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture">
   <w:body>${bodyContent}</w:body>
 </w:document>`;
   zip.folder("word")?.file("document.xml", documentXml);
 
   return await zip.generateAsync({ type: "blob" });
-};
-
-/**
- * Extracts text content from a PDF file.
- */
-const extractTextFromPdf = async (
-  fileData: Uint8Array, 
-  password?: string,
-  onProgress?: (percent: number) => void
-): Promise<string[]> => {
-  if (!window.pdfjsLib) throw new Error("PDF.js not loaded");
-  
-  const loadingTask = window.pdfjsLib.getDocument({ data: fileData, password: password });
-  const pdf = await loadingTask.promise;
-  const numPages = pdf.numPages;
-  const paragraphs: string[] = [];
-
-  for (let i = 1; i <= numPages; i++) {
-    if (onProgress) onProgress(Math.round((i / numPages) * 100));
-    const page = await pdf.getPage(i);
-    const textContent = await page.getTextContent();
-    
-    // Simple text extraction strategy: join items with space
-    const pageText = textContent.items
-      .map((item: any) => item.str)
-      .join(' ');
-      
-    if (pageText.trim().length > 0) {
-      paragraphs.push(pageText);
-      paragraphs.push(""); // Empty line between pages
-    }
-  }
-  
-  return paragraphs;
 };
 
 /**
@@ -399,13 +739,13 @@ export const convertPdf = async (
   
   // PDF TO WORD (REAL IMPLEMENTATION)
   if (targetFormat === 'word' && file.type === 'application/pdf') {
-    if (onProgress) onProgress(10, "Extracting text from PDF...");
-    const paragraphs = await extractTextFromPdf(file.data, file.password, (p) => {
-      if (onProgress) onProgress(10 + Math.round(p * 0.4), `Extracting text... ${p}%`);
+    if (onProgress) onProgress(10, "Extracting content (text & images) from PDF...");
+    const items = await extractContentFromPdf(file.data, file.password, (p) => {
+      if (onProgress) onProgress(10 + Math.round(p * 0.4), `Analyzing content... ${p}%`);
     });
 
     if (onProgress) onProgress(60, "Generating Word document...");
-    const docxBlob = await createDocxFromText(paragraphs);
+    const docxBlob = await createDocxFromContent(items);
     
     if (onProgress) onProgress(100, "Done!");
     return {
@@ -461,8 +801,10 @@ export const convertPdfToImages = async (
   }
 
   const pdfjs = window.pdfjsLib;
+  
+  // Clone data to avoid detached buffer errors
   const loadingTask = pdfjs.getDocument({ 
-    data: file.data, 
+    data: file.data.slice(), 
     password: file.password 
   });
 
@@ -520,5 +862,138 @@ export const convertPdfToImages = async (
   return {
     data: content,
     fileName: `${file.name.replace('.pdf', '')}_images.zip`
+  };
+};
+
+/**
+ * Converts a list of images (JPG, PNG) into a single PDF document.
+ */
+export const convertImagesToPdf = async (
+  files: UploadedFile[],
+  options: { pageSize: 'a4' | 'fit'; orientation: 'portrait' | 'landscape' | 'auto'; margin: number },
+  onProgress: (p: number, msg: string) => void
+): Promise<{ data: Uint8Array, fileName: string }> => {
+  if (!window.PDFLib) throw new Error("PDF Library not loaded");
+  const { PDFDocument, PageSizes } = window.PDFLib;
+  
+  if (files.length === 0) throw new Error("No files selected");
+
+  const pdfDoc = await PDFDocument.create();
+  const totalFiles = files.length;
+  
+  for (let i = 0; i < totalFiles; i++) {
+    const file = files[i];
+    const progress = Math.round((i / totalFiles) * 90);
+    onProgress(progress, `Processing image ${i + 1} of ${totalFiles}...`);
+
+    let image;
+    try {
+      // Determine image type. PDFLib supports PNG and JPG directly.
+      // WEBP or others need conversion. We assume input is already filtered or converted if necessary,
+      // but for robustness we can try to detect or fallback.
+      // For this implementation, we assume files are JPG/PNG as enforced by input accept.
+      // If we allowed WEBP, we'd need a canvas conversion step here similar to sanitization.
+      
+      const isPng = file.type === 'image/png';
+      const isJpg = file.type === 'image/jpeg' || file.type === 'image/jpg';
+      
+      if (isPng) {
+        image = await pdfDoc.embedPng(file.data);
+      } else if (isJpg) {
+        image = await pdfDoc.embedJpg(file.data);
+      } else {
+        // Fallback: Convert unknown/unsupported (like WEBP) to PNG via Canvas
+        // This is a bit heavy but ensures compatibility
+        const blob = new Blob([file.data], { type: file.type });
+        const bmp = await createImageBitmap(blob);
+        const canvas = document.createElement('canvas');
+        canvas.width = bmp.width;
+        canvas.height = bmp.height;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+           ctx.drawImage(bmp, 0, 0);
+           const pngBlob = await new Promise<Blob | null>(r => canvas.toBlob(r, 'image/png'));
+           if (pngBlob) {
+             const buf = await pngBlob.arrayBuffer();
+             image = await pdfDoc.embedPng(buf);
+           }
+        }
+      }
+      
+      if (!image) throw new Error("Could not process image");
+
+      const imgDims = image.scale(1);
+      
+      // Calculate page dimensions based on options
+      let pageWidth, pageHeight;
+      let drawWidth, drawHeight;
+      let drawX, drawY;
+
+      if (options.pageSize === 'fit') {
+        // Page matches image size exactly (plus margin if any, but usually fit means exact)
+        // We'll apply margin anyway if user specified it
+        const margin2 = options.margin * 2;
+        pageWidth = imgDims.width + margin2;
+        pageHeight = imgDims.height + margin2;
+        drawWidth = imgDims.width;
+        drawHeight = imgDims.height;
+        drawX = options.margin;
+        drawY = options.margin;
+      } else {
+        // A4 Standard
+        // PDFLib A4 is [595.28, 841.89] (Points)
+        const A4 = PageSizes.A4; // [width, height]
+        let a4Width = A4[0];
+        let a4Height = A4[1];
+
+        // Handle Orientation
+        let isLandscape = false;
+        if (options.orientation === 'auto') {
+           isLandscape = imgDims.width > imgDims.height;
+        } else {
+           isLandscape = options.orientation === 'landscape';
+        }
+
+        if (isLandscape) {
+           // Swap A4 dims
+           const temp = a4Width; a4Width = a4Height; a4Height = temp;
+        }
+
+        pageWidth = a4Width;
+        pageHeight = a4Height;
+
+        // Calculate Scale to fit within margins
+        const maxW = pageWidth - (options.margin * 2);
+        const maxH = pageHeight - (options.margin * 2);
+
+        const scale = Math.min(maxW / imgDims.width, maxH / imgDims.height);
+        
+        drawWidth = imgDims.width * scale;
+        drawHeight = imgDims.height * scale;
+        
+        // Center image
+        drawX = (pageWidth - drawWidth) / 2;
+        drawY = (pageHeight - drawHeight) / 2;
+      }
+
+      const page = pdfDoc.addPage([pageWidth, pageHeight]);
+      page.drawImage(image, {
+        x: drawX,
+        y: drawY,
+        width: drawWidth,
+        height: drawHeight,
+      });
+
+    } catch (e) {
+      console.warn(`Skipping image ${file.name}:`, e);
+      continue;
+    }
+  }
+
+  onProgress(100, "Done!");
+  const pdfBytes = await pdfDoc.save();
+  return {
+    data: pdfBytes,
+    fileName: 'images_merged.pdf'
   };
 };

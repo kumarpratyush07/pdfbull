@@ -14,6 +14,7 @@ const Hero: React.FC<HeroProps> = ({ mode, onFilesSelect, isProcessing, error })
   const [isDragging, setIsDragging] = useState(false);
 
   let title, subtitle, icon, acceptType, dropText;
+  let allowMultiple = false;
 
   switch (mode) {
     case 'merge':
@@ -22,6 +23,7 @@ const Hero: React.FC<HeroProps> = ({ mode, onFilesSelect, isProcessing, error })
       icon = <Layers className="w-8 h-8 text-indigo-600 dark:text-indigo-400" />;
       acceptType = "application/pdf";
       dropText = "Click to select PDF files";
+      allowMultiple = true;
       break;
     case 'split':
       title = <>Split your <span className="text-indigo-600 dark:text-indigo-400">PDF</span> easily</>;
@@ -50,6 +52,14 @@ const Hero: React.FC<HeroProps> = ({ mode, onFilesSelect, isProcessing, error })
       icon = <Image className="w-8 h-8 text-purple-600 dark:text-purple-400" />;
       acceptType = "application/pdf";
       dropText = "Click to select a PDF file";
+      break;
+    case 'image-to-pdf':
+      title = <>Convert <span className="text-purple-600 dark:text-purple-400">Images</span> to PDF</>;
+      subtitle = "Turn your JPG, PNG, or WEBP images into a single professional PDF document.";
+      icon = <Image className="w-8 h-8 text-purple-600 dark:text-purple-400" />;
+      acceptType = "image/jpeg,image/png,image/webp";
+      dropText = "Click to select images";
+      allowMultiple = true;
       break;
     case 'pdf-to-word':
       title = <>Convert <span className="text-blue-600 dark:text-blue-400">PDF</span> to Word</>;
@@ -162,7 +172,7 @@ const Hero: React.FC<HeroProps> = ({ mode, onFilesSelect, isProcessing, error })
               ref={fileInputRef} 
               className="hidden" 
               accept={acceptType}
-              multiple={mode === 'merge'} 
+              multiple={allowMultiple} 
               onChange={handleFileChange}
             />
             
@@ -179,7 +189,7 @@ const Hero: React.FC<HeroProps> = ({ mode, onFilesSelect, isProcessing, error })
               {isProcessing ? 'Processing...' : dropText}
             </h3>
             <p className="text-sm text-slate-500 dark:text-slate-400">
-              {mode === 'merge' ? 'or drag and drop multiple files here' : 'or drag and drop a file here'}
+              {allowMultiple ? 'or drag and drop multiple files here' : 'or drag and drop a file here'}
             </p>
 
             {error && (
@@ -195,7 +205,7 @@ const Hero: React.FC<HeroProps> = ({ mode, onFilesSelect, isProcessing, error })
               <CheckCircle className="w-4 h-4 text-green-500 dark:text-green-400" />
               <span>100% Client-side</span>
             </div>
-            {mode === 'merge' && (
+            {allowMultiple && (
               <div className="flex items-center gap-2">
                 <CheckCircle className="w-4 h-4 text-green-500 dark:text-green-400" />
                 <span>No File Limits</span>

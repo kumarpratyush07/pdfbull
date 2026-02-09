@@ -6,11 +6,12 @@ import SplitDashboard from './components/SplitDashboard';
 import CompressDashboard from './components/CompressDashboard';
 import ConversionDashboard from './components/ConversionDashboard';
 import PdfToImageDashboard from './components/PdfToImageDashboard';
+import ImageToPdfDashboard, { ImageToPdfSettings } from './components/ImageToPdfDashboard';
 import PdfPreviewModal from './components/PdfPreviewModal';
 import Home from './components/Home';
 import { UploadedFile, AppStatus, MergeResult, ToolMode, CompressionLevel } from './types';
 import { fileToUint8Array, generateId } from './lib/utils';
-import { mergePdfs, checkForEncryption, validatePassword, getPageCount, splitPdf, compressPdf, convertPdf, convertPdfToImages } from './services/pdfService';
+import { mergePdfs, checkForEncryption, validatePassword, getPageCount, splitPdf, compressPdf, convertPdf, convertPdfToImages, convertImagesToPdf } from './services/pdfService';
 
 const App: React.FC = () => {
   const [activeTool, setActiveTool] = useState<ToolMode>('home');
@@ -68,14 +69,16 @@ const App: React.FC = () => {
     
     try {
       const newFiles: UploadedFile[] = [];
-      const isSingleFileMode = activeTool !== 'merge';
+      const isMergeMode = activeTool === 'merge';
+      const isImageToPdfMode = activeTool === 'image-to-pdf';
+      const allowMultiple = isMergeMode || isImageToPdfMode;
       
       // If single file mode and we already have a file, check count
-      if (isSingleFileMode && fileList.length > 1) {
+      if (!allowMultiple && fileList.length > 1) {
          throw new Error("Please select only one file.");
       }
 
-      const limit = Math.min(fileList.length, isSingleFileMode ? 1 : 999);
+      const limit = Math.min(fileList.length, allowMultiple ? 999 : 1);
 
       for (let i = 0; i < limit; i++) {
         const file = fileList[i];
@@ -87,6 +90,8 @@ const App: React.FC = () => {
           if (!file.name.match(/\.(xls|xlsx)$/i)) continue;
         } else if (activeTool === 'ppt-to-pdf') {
            if (!file.name.match(/\.(ppt|pptx)$/i)) continue;
+        } else if (activeTool === 'image-to-pdf') {
+           if (!file.type.startsWith('image/')) continue;
         } else {
           // Default to PDF for other tools
           if (file.type !== 'application/pdf') continue;
@@ -125,10 +130,10 @@ const App: React.FC = () => {
         throw new Error("No valid files selected for this tool.");
       }
 
-      if (isSingleFileMode) {
-        setFiles(newFiles); // Replace
+      if (allowMultiple) {
+        setFiles(prev => [...prev, ...newFiles]); // Append
       } else {
-        setFiles(prev => [...prev, ...newFiles]); // Append for merge
+        setFiles(newFiles); // Replace
       }
       
       setStatus(AppStatus.IDLE); 
@@ -369,6 +374,37 @@ const App: React.FC = () => {
     }
   };
 
+  const handleImageToPdf = async (settings: ImageToPdfSettings) => {
+    if (files.length === 0) return;
+    
+    try {
+      setStatus(AppStatus.PROCESSING);
+      setProgress(0);
+      setProgressMessage("Initializing...");
+      setError(null);
+
+      const { data, fileName } = await convertImagesToPdf(files, settings, (p, msg) => {
+        setProgress(p);
+        setProgressMessage(msg);
+      });
+
+      const blob = new Blob([data], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+
+      setResult({
+        fileName: fileName,
+        url: url,
+        size: blob.size
+      });
+
+      setStatus(AppStatus.SUCCESS);
+    } catch (err: any) {
+       console.error(err);
+       setError(err.message || "Image to PDF conversion failed.");
+       setStatus(AppStatus.ERROR);
+    }
+  };
+
   const handleClear = () => {
     setFiles([]);
     setResult(null);
@@ -405,6 +441,22 @@ const App: React.FC = () => {
             onAddMore={triggerAddMore}
             onPasswordSubmit={handlePasswordSubmit}
             isMerging={status === AppStatus.PROCESSING}
+            result={result}
+            progress={progress}
+            progressMessage={progressMessage}
+            error={error}
+          />
+        );
+      case 'image-to-pdf':
+        return (
+          <ImageToPdfDashboard 
+            files={files}
+            onRemoveFile={handleRemoveFile}
+            onReorder={handleReorder}
+            onConvert={handleImageToPdf}
+            onClear={handleClear}
+            onAddMore={triggerAddMore}
+            isProcessing={status === AppStatus.PROCESSING}
             result={result}
             progress={progress}
             progressMessage={progressMessage}
@@ -503,7 +555,7 @@ const App: React.FC = () => {
       {/* Hidden input for "Add More" functionality */}
       <input 
         type="file" 
-        multiple={activeTool === 'merge'}
+        multiple={activeTool === 'merge' || activeTool === 'image-to-pdf'}
         className="hidden"
         ref={hiddenInputRef}
         onChange={handleHiddenInputChange}

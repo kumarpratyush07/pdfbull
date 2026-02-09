@@ -1,6 +1,7 @@
 import React from 'react';
-import { Box, Sun, Moon, Github, ChevronLeft } from 'lucide-react';
+import { Box, ChevronLeft } from 'lucide-react';
 import { ToolMode } from '../types';
+import { ThemeToggle } from './ui/theme-toggle';
 
 interface HeaderProps {
   darkMode: boolean;
@@ -38,33 +39,7 @@ const Header: React.FC<HeaderProps> = ({ darkMode, toggleDarkMode, activeTool, o
             </div>
           </div>
           <nav className="flex items-center gap-6">
-            <a href="#" className="hidden sm:block text-sm font-medium text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
-              Pricing
-            </a>
-            <a href="#" className="hidden sm:block text-sm font-medium text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
-              About
-            </a>
-            
-            <button
-              onClick={toggleDarkMode}
-              className="p-2 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              aria-label="Toggle Dark Mode"
-            >
-              {darkMode ? (
-                <Sun className="w-5 h-5" />
-              ) : (
-                <Moon className="w-5 h-5" />
-              )}
-            </button>
-
-            <a 
-              href="https://github.com" 
-              target="_blank" 
-              rel="noreferrer"
-              className="text-slate-900 dark:text-slate-100 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
-            >
-              <Github className="w-5 h-5" />
-            </a>
+            <ThemeToggle isDark={darkMode} toggleTheme={toggleDarkMode} />
           </nav>
         </div>
       </div>
