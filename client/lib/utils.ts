@@ -36,21 +36,21 @@ export const uint8ArrayToBase64 = (bytes: Uint8Array): string => {
 export const parsePageRange = (range: string, maxPages: number): number[] => {
   const pages = new Set<number>();
   const parts = range.split(',');
-  
+
   for (const part of parts) {
     const trimmed = part.trim();
     if (!trimmed) continue;
-    
+
     if (trimmed.includes('-')) {
       const [startStr, endStr] = trimmed.split('-');
       const start = parseInt(startStr);
       const end = parseInt(endStr);
-      
+
       if (!isNaN(start) && !isNaN(end)) {
         // Handle reverse ranges or normal ranges
         const min = Math.min(start, end);
         const max = Math.max(start, end);
-        
+
         for (let i = min; i <= max; i++) {
           if (i >= 1 && i <= maxPages) pages.add(i);
         }
@@ -62,7 +62,7 @@ export const parsePageRange = (range: string, maxPages: number): number[] => {
       }
     }
   }
-  
+
   return Array.from(pages).sort((a, b) => a - b);
 };
 
@@ -72,32 +72,32 @@ export const parseSplitRanges = (rangeInput: string, maxPages: number): number[]
 
   for (const part of parts) {
     if (!part.trim()) continue;
-    
+
     // Within a comma-separated part, we look for ranges or numbers separated by whitespace
     // We want to preserve order of user input for constructing the page list
-    
+
     const pages: number[] = [];
     const regex = /(\d+)\s*-\s*(\d+)|(\d+)/g;
     let match;
-    
+
     // We need to loop through matches in the string `part`
     while ((match = regex.exec(part)) !== null) {
       if (match[1] && match[2]) {
         // Range start-end
         const start = parseInt(match[1]);
         const end = parseInt(match[2]);
-        
+
         if (!isNaN(start) && !isNaN(end)) {
           // Handle ascending or descending
           if (start <= end) {
-             for (let i = start; i <= end; i++) {
-               if (i >= 1 && i <= maxPages) pages.push(i);
-             }
+            for (let i = start; i <= end; i++) {
+              if (i >= 1 && i <= maxPages) pages.push(i);
+            }
           } else {
-             // Descending range
-             for (let i = start; i >= end; i--) {
-               if (i >= 1 && i <= maxPages) pages.push(i);
-             }
+            // Descending range
+            for (let i = start; i >= end; i--) {
+              if (i >= 1 && i <= maxPages) pages.push(i);
+            }
           }
         }
       } else if (match[3]) {
@@ -108,7 +108,7 @@ export const parseSplitRanges = (rangeInput: string, maxPages: number): number[]
         }
       }
     }
-    
+
     if (pages.length > 0) {
       fileGroups.push(pages);
     }
@@ -117,6 +117,9 @@ export const parseSplitRanges = (rangeInput: string, maxPages: number): number[]
   return fileGroups;
 };
 
-export function cn(...classes: (string | undefined | null | false)[]) {
-  return classes.filter(Boolean).join(' ');
+import { type ClassValue, clsx } from "clsx"
+import { twMerge } from "tailwind-merge"
+
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs))
 }
