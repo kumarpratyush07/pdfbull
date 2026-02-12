@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import Header from './components/Header';
+import Navbar from './components/Navbar';
 import Hero from './components/Hero';
 import Dashboard from './components/Dashboard';
 import SplitDashboard from './components/SplitDashboard';
@@ -12,6 +12,9 @@ import Home from './components/Home';
 import { UploadedFile, AppStatus, MergeResult, ToolMode, CompressionLevel } from './types';
 import { fileToUint8Array, generateId } from './lib/utils';
 import { mergePdfs, checkForEncryption, validatePassword, getPageCount, splitPdf, compressPdf, convertPdf, convertPdfToImages, convertImagesToPdf } from './services/pdfService';
+import { Component as EtheralShadow } from './components/ui/etheral-shadow';
+import { useTheme } from 'next-themes';
+
 
 const App: React.FC = () => {
   const [activeTool, setActiveTool] = useState<ToolMode>('home');
@@ -19,34 +22,13 @@ const App: React.FC = () => {
   const [files, setFiles] = useState<UploadedFile[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<MergeResult | null>(null);
-  
+
   // Progress state
   const [progress, setProgress] = useState(0);
   const [progressMessage, setProgressMessage] = useState("");
 
-  // Dark mode state initialization - Default to TRUE (Dark Mode)
-  const [darkMode, setDarkMode] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('theme');
-      if (saved) return saved === 'dark';
-      // Default to dark mode if no preference is set
-      return true;
-    }
-    return true;
-  });
-
-  // Apply dark mode class to html element
-  useEffect(() => {
-    if (darkMode) {
-      document.documentElement.classList.add('dark');
-      localStorage.setItem('theme', 'dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-      localStorage.setItem('theme', 'light');
-    }
-  }, [darkMode]);
-
-  const toggleDarkMode = () => setDarkMode(!darkMode);
+  const { resolvedTheme } = useTheme();
+  const darkMode = resolvedTheme === 'dark';
 
   // Helper to trigger hidden file input from Dashboard if needed
   const hiddenInputRef = useRef<HTMLInputElement>(null);
@@ -66,32 +48,32 @@ const App: React.FC = () => {
 
   const handleFilesSelect = useCallback(async (fileList: FileList) => {
     setError(null);
-    
+
     try {
       const newFiles: UploadedFile[] = [];
       const isMergeMode = activeTool === 'merge';
       const isImageToPdfMode = activeTool === 'image-to-pdf';
       const allowMultiple = isMergeMode || isImageToPdfMode;
-      
+
       // If single file mode and we already have a file, check count
       if (!allowMultiple && fileList.length > 1) {
-         throw new Error("Please select only one file.");
+        throw new Error("Please select only one file.");
       }
 
       const limit = Math.min(fileList.length, allowMultiple ? 999 : 1);
 
       for (let i = 0; i < limit; i++) {
         const file = fileList[i];
-        
+
         // Validation logic based on tool
         if (activeTool === 'word-to-pdf') {
           if (!file.name.match(/\.(doc|docx)$/i)) continue;
         } else if (activeTool === 'excel-to-pdf') {
           if (!file.name.match(/\.(xls|xlsx)$/i)) continue;
         } else if (activeTool === 'ppt-to-pdf') {
-           if (!file.name.match(/\.(ppt|pptx)$/i)) continue;
+          if (!file.name.match(/\.(ppt|pptx)$/i)) continue;
         } else if (activeTool === 'image-to-pdf') {
-           if (!file.type.startsWith('image/')) continue;
+          if (!file.type.startsWith('image/')) continue;
         } else {
           // Default to PDF for other tools
           if (file.type !== 'application/pdf') continue;
@@ -100,7 +82,7 @@ const App: React.FC = () => {
         if (file.size === 0) continue;
 
         const data = await fileToUint8Array(file);
-        
+
         // Check for encryption immediately only for PDF
         let isEncrypted = false;
         let pageCount = undefined;
@@ -109,9 +91,9 @@ const App: React.FC = () => {
           isEncrypted = await checkForEncryption(data);
           // Try to get page count if not encrypted
           if (!isEncrypted) {
-             try {
-               pageCount = await getPageCount(data);
-             } catch (e) { console.warn("Could not read page count", e); }
+            try {
+              pageCount = await getPageCount(data);
+            } catch (e) { console.warn("Could not read page count", e); }
           }
         }
 
@@ -135,8 +117,8 @@ const App: React.FC = () => {
       } else {
         setFiles(newFiles); // Replace
       }
-      
-      setStatus(AppStatus.IDLE); 
+
+      setStatus(AppStatus.IDLE);
     } catch (err: any) {
       console.error(err);
       setError(err.message || "Failed to process files.");
@@ -157,7 +139,7 @@ const App: React.FC = () => {
 
     const file = files[fileIndex];
     const isValid = await validatePassword(file.data, password);
-    
+
     if (isValid) {
       // If valid, also try to get page count if we don't have it
       let pageCount = file.pageCount;
@@ -192,23 +174,23 @@ const App: React.FC = () => {
       setProgress(0);
       setProgressMessage("Initializing...");
       setError(null);
-      
+
       await new Promise(resolve => setTimeout(resolve, 500));
 
       const mergedBytes = await mergePdfs(files, (percent, msg) => {
         setProgress(percent);
         setProgressMessage(msg);
       });
-      
+
       const blob = new Blob([mergedBytes], { type: 'application/pdf' });
       const url = URL.createObjectURL(blob);
-      
+
       setResult({
         fileName: 'merged-document.pdf',
         url: url,
         size: blob.size
       });
-      
+
       setStatus(AppStatus.SUCCESS);
 
     } catch (err: any) {
@@ -224,7 +206,7 @@ const App: React.FC = () => {
 
     try {
       if (!file.pageCount) {
-         throw new Error("Page count unknown. Cannot split.");
+        throw new Error("Page count unknown. Cannot split.");
       }
 
       setStatus(AppStatus.PROCESSING);
@@ -237,7 +219,7 @@ const App: React.FC = () => {
         setProgress(p);
         setProgressMessage(msg);
       });
-      
+
       const isZip = fileName.endsWith('.zip');
       const blob = new Blob([data], { type: isZip ? 'application/zip' : 'application/pdf' });
       const url = URL.createObjectURL(blob);
@@ -247,7 +229,7 @@ const App: React.FC = () => {
         url: url,
         size: blob.size
       });
-      
+
       setStatus(AppStatus.SUCCESS);
 
     } catch (err: any) {
@@ -296,7 +278,7 @@ const App: React.FC = () => {
   const handleConvert = async () => {
     if (files.length === 0) return;
     const file = files[0];
-    
+
     // Determine target format
     let targetFormat: 'word' | 'excel' | 'ppt' | 'pdf' = 'pdf';
     if (activeTool === 'pdf-to-word') targetFormat = 'word';
@@ -333,9 +315,9 @@ const App: React.FC = () => {
 
       setStatus(AppStatus.SUCCESS);
     } catch (err: any) {
-       console.error(err);
-       setError(err.message || "Conversion failed.");
-       setStatus(AppStatus.ERROR);
+      console.error(err);
+      setError(err.message || "Conversion failed.");
+      setStatus(AppStatus.ERROR);
     }
   };
 
@@ -356,7 +338,7 @@ const App: React.FC = () => {
 
       const isZip = fileName.endsWith('.zip');
       const mimeType = isZip ? 'application/zip' : (format === 'png' ? 'image/png' : 'image/jpeg');
-      
+
       const blob = new Blob([data], { type: mimeType });
       const url = URL.createObjectURL(blob);
 
@@ -376,7 +358,7 @@ const App: React.FC = () => {
 
   const handleImageToPdf = async (settings: ImageToPdfSettings) => {
     if (files.length === 0) return;
-    
+
     try {
       setStatus(AppStatus.PROCESSING);
       setProgress(0);
@@ -399,9 +381,9 @@ const App: React.FC = () => {
 
       setStatus(AppStatus.SUCCESS);
     } catch (err: any) {
-       console.error(err);
-       setError(err.message || "Image to PDF conversion failed.");
-       setStatus(AppStatus.ERROR);
+      console.error(err);
+      setError(err.message || "Image to PDF conversion failed.");
+      setStatus(AppStatus.ERROR);
     }
   };
 
@@ -432,7 +414,7 @@ const App: React.FC = () => {
         return <Home onSelectTool={handleToolSelect} />;
       case 'merge':
         return (
-          <Dashboard 
+          <Dashboard
             files={files}
             onRemoveFile={handleRemoveFile}
             onReorder={handleReorder}
@@ -449,7 +431,7 @@ const App: React.FC = () => {
         );
       case 'image-to-pdf':
         return (
-          <ImageToPdfDashboard 
+          <ImageToPdfDashboard
             files={files}
             onRemoveFile={handleRemoveFile}
             onReorder={handleReorder}
@@ -465,7 +447,7 @@ const App: React.FC = () => {
         );
       case 'split':
         return (
-          <SplitDashboard 
+          <SplitDashboard
             file={files[0]}
             onRemoveFile={() => setFiles([])}
             onExtract={handleSplitExtract}
@@ -478,7 +460,7 @@ const App: React.FC = () => {
         );
       case 'compress':
         return (
-          <CompressDashboard 
+          <CompressDashboard
             file={files[0]}
             onRemoveFile={() => setFiles([])}
             onCompress={handleCompress}
@@ -493,7 +475,7 @@ const App: React.FC = () => {
         );
       case 'pdf-to-image':
         return (
-          <PdfToImageDashboard 
+          <PdfToImageDashboard
             file={files[0]}
             onRemoveFile={() => setFiles([])}
             onConvert={handlePdfToImage}
@@ -508,10 +490,10 @@ const App: React.FC = () => {
         );
       case 'view':
         return (
-           <PdfPreviewModal 
-             file={files[0]} 
-             onClose={handleClear} 
-           />
+          <PdfPreviewModal
+            file={files[0]}
+            onClose={handleClear}
+          />
         );
       case 'pdf-to-word':
       case 'pdf-to-excel':
@@ -523,9 +505,9 @@ const App: React.FC = () => {
         if (activeTool === 'pdf-to-word') target = 'word';
         if (activeTool === 'pdf-to-excel') target = 'excel';
         if (activeTool === 'pdf-to-ppt') target = 'ppt';
-        
+
         return (
-          <ConversionDashboard 
+          <ConversionDashboard
             file={files[0]}
             targetFormat={target}
             onRemoveFile={() => setFiles([])}
@@ -544,42 +526,52 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col font-sans transition-colors duration-300">
-      <Header 
-        darkMode={darkMode} 
-        toggleDarkMode={toggleDarkMode} 
-        activeTool={activeTool}
-        onBackHome={handleBackToHome}
-      />
-      
-      {/* Hidden input for "Add More" functionality */}
-      <input 
-        type="file" 
-        multiple={activeTool === 'merge' || activeTool === 'image-to-pdf'}
-        className="hidden"
-        ref={hiddenInputRef}
-        onChange={handleHiddenInputChange}
-      />
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col font-sans transition-colors duration-300 relative">
+      {/* Global Etheral Shadow Background */}
+      <div className="fixed inset-0 z-0 pointer-events-none">
+        <EtheralShadow
+          color={darkMode ? "rgba(128, 128, 128, 1)" : "#6366f1"}
+          animation={{ scale: 100, speed: 90 }}
+          noise={{ opacity: darkMode ? 0.5 : 0.2, scale: 1 }}
+          sizing="fill"
+          className="w-full h-full opacity-60 dark:opacity-100 transition-opacity duration-500"
+        />
+      </div>
 
-      {/* Render logic: If we have a file or result, show the dashboard/result. If not, show Hero. */}
-      {/* Exception: 'home' always shows home */}
-      
-      {activeTool === 'home' ? (
-        <Home onSelectTool={handleToolSelect} />
-      ) : (
-        <>
-           {files.length === 0 && !result ? (
-            <Hero 
-              mode={activeTool}
-              onFilesSelect={handleFilesSelect} 
-              isProcessing={status === AppStatus.PROCESSING}
-              error={error}
-            />
-          ) : (
-            renderTool()
-          )}
-        </>
-      )}
+      <div className="relative z-10 flex flex-col min-h-screen">
+        <Navbar
+          activeTool={activeTool}
+          onBackHome={handleBackToHome}
+        />
+
+        {/* Hidden input for "Add More" functionality */}
+        <input
+          type="file"
+          multiple={activeTool === 'merge' || activeTool === 'image-to-pdf'}
+          className="hidden"
+          ref={hiddenInputRef}
+          onChange={handleHiddenInputChange}
+        />
+
+        {/* Render logic */}
+
+        {activeTool === 'home' ? (
+          <Home onSelectTool={handleToolSelect} />
+        ) : (
+          <>
+            {files.length === 0 && !result ? (
+              <Hero
+                mode={activeTool}
+                onFilesSelect={handleFilesSelect}
+                isProcessing={status === AppStatus.PROCESSING}
+                error={error}
+              />
+            ) : (
+              renderTool()
+            )}
+          </>
+        )}
+      </div>
     </div>
   );
 };
