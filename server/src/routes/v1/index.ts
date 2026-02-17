@@ -1,8 +1,8 @@
 import { Router } from 'express';
-import { upload } from '../middlewares/upload';
-import { mergeController, splitController, compressController } from '../controllers/pdfController';
-import { officeToPdfController, pdfToOfficeController } from '../controllers/officeController';
-import { dateImageToPdfController, pdfToImageController } from '../controllers/imageController';
+import { upload } from '../../middlewares/upload';
+import { mergeController, splitController, compressController } from '../../controllers/pdfController';
+import { officeToPdfController, pdfToOfficeController } from '../../controllers/officeController';
+import { dateImageToPdfController, pdfToImageController } from '../../controllers/imageController';
 
 const router = Router();
 

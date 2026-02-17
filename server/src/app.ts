@@ -3,10 +3,10 @@ import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import fs from 'fs-extra';
-import { config } from './config/env';
+import { config } from './config';
 import { errorHandler } from './middlewares/errorHandler';
 
-import apiRoutes from './routes';
+import apiRoutes from './routes/v1';
 
 const app = express();
 
@@ -28,7 +28,7 @@ app.get('/health', (req, res) => {
     res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-app.use('/api', apiRoutes);
+app.use('/api/v1', apiRoutes);
 
 // Error handling
 app.use(errorHandler);
