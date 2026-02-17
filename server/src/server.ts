@@ -1,10 +1,17 @@
 import app from './app';
-import { config } from './config/env';
+import { config } from './config';
 import { logger } from './utils/logger';
+import { setupSwagger } from './config/swagger';
 
 const server = app.listen(config.port, () => {
     logger.info(`Server running in ${config.nodeEnv} mode on port ${config.port}`);
-    logger.info(`Comparison URL: http://localhost:${config.port}/health`);
+
+    if (config.isDev) {
+        setupSwagger(app);
+        logger.info(`Swagger docs: http://localhost:${config.port}/api-docs`);
+    }
+
+    logger.info(`Health check: http://localhost:${config.port}/health`);
 });
 
 process.on('unhandledRejection', (err: Error) => {

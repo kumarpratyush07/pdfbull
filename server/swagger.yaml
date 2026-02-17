@@ -1,0 +1,47 @@
+openapi: 3.0.0
+info:
+  title: PDFBull API
+  description: API for PDF manipulation services
+  version: 1.0.0
+servers:
+  - url: http://localhost:5000/api/v1
+    description: Development server
+paths:
+  /health:
+    get:
+      summary: Health check
+      responses:
+        '200':
+          description: OK
+  /merge:
+    post:
+      summary: Merge multiple PDFs
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                files:
+                  type: array
+                  items:
+                    type: string
+                    format: binary
+      responses:
+        '200':
+          description: Merged PDF file
+  /split:
+    post:
+      summary: Split a PDF
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        '200':
+          description: Zip file containing split PDF pages
