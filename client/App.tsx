@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
+import { BrowserRouter, Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import Navbar from './components/Navbar';
 import Hero from './components/Hero';
 import Dashboard from './components/Dashboard';
@@ -15,9 +16,13 @@ import { mergePdfs, checkForEncryption, validatePassword, getPageCount, splitPdf
 import { Component as EtheralShadow } from './components/ui/etheral-shadow';
 import { useTheme } from 'next-themes';
 
+const AppContent: React.FC = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const activeTool = (location.pathname.substring(1) || 'home') as ToolMode;
 
-const App: React.FC = () => {
-  const [activeTool, setActiveTool] = useState<ToolMode>('home');
+
+
   const [status, setStatus] = useState<AppStatus>(AppStatus.IDLE);
   const [files, setFiles] = useState<UploadedFile[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -34,12 +39,12 @@ const App: React.FC = () => {
   const hiddenInputRef = useRef<HTMLInputElement>(null);
 
   const handleToolSelect = (tool: ToolMode) => {
-    setActiveTool(tool);
     // Reset state when switching tools
     setFiles([]);
     setResult(null);
     setError(null);
     setStatus(AppStatus.IDLE);
+    navigate(tool === 'home' ? '/' : `/${tool}`);
   };
 
   const handleBackToHome = () => {
@@ -182,7 +187,7 @@ const App: React.FC = () => {
         setProgressMessage(msg);
       });
 
-      const blob = new Blob([mergedBytes], { type: 'application/pdf' });
+      const blob = new Blob([mergedBytes as any], { type: 'application/pdf' });
       const url = URL.createObjectURL(blob);
 
       setResult({
@@ -221,7 +226,7 @@ const App: React.FC = () => {
       });
 
       const isZip = fileName.endsWith('.zip');
-      const blob = new Blob([data], { type: isZip ? 'application/zip' : 'application/pdf' });
+      const blob = new Blob([data as any], { type: isZip ? 'application/zip' : 'application/pdf' });
       const url = URL.createObjectURL(blob);
 
       setResult({
@@ -257,7 +262,7 @@ const App: React.FC = () => {
         setProgressMessage(msg);
       });
 
-      const blob = new Blob([data], { type: 'application/pdf' });
+      const blob = new Blob([data as any], { type: 'application/pdf' });
       const url = URL.createObjectURL(blob);
 
       setResult({
@@ -304,7 +309,7 @@ const App: React.FC = () => {
       else if (fileName.endsWith('.xlsx')) mimeType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
       else if (fileName.endsWith('.pptx')) mimeType = 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
 
-      const blob = new Blob([data], { type: mimeType });
+      const blob = new Blob([data as any], { type: mimeType });
       const url = URL.createObjectURL(blob);
 
       setResult({
@@ -339,7 +344,7 @@ const App: React.FC = () => {
       const isZip = fileName.endsWith('.zip');
       const mimeType = isZip ? 'application/zip' : (format === 'png' ? 'image/png' : 'image/jpeg');
 
-      const blob = new Blob([data], { type: mimeType });
+      const blob = new Blob([data as any], { type: mimeType });
       const url = URL.createObjectURL(blob);
 
       setResult({
@@ -370,7 +375,7 @@ const App: React.FC = () => {
         setProgressMessage(msg);
       });
 
-      const blob = new Blob([data], { type: 'application/pdf' });
+      const blob = new Blob([data as any], { type: 'application/pdf' });
       const url = URL.createObjectURL(blob);
 
       setResult({
@@ -408,122 +413,15 @@ const App: React.FC = () => {
     if (hiddenInputRef.current) hiddenInputRef.current.value = '';
   };
 
-  const renderTool = () => {
-    switch (activeTool) {
-      case 'home':
-        return <Home onSelectTool={handleToolSelect} />;
-      case 'merge':
-        return (
-          <Dashboard
-            files={files}
-            onRemoveFile={handleRemoveFile}
-            onReorder={handleReorder}
-            onMerge={handleMerge}
-            onClear={handleClear}
-            onAddMore={triggerAddMore}
-            onPasswordSubmit={handlePasswordSubmit}
-            isMerging={status === AppStatus.PROCESSING}
-            result={result}
-            progress={progress}
-            progressMessage={progressMessage}
-            error={error}
-          />
-        );
-      case 'image-to-pdf':
-        return (
-          <ImageToPdfDashboard
-            files={files}
-            onRemoveFile={handleRemoveFile}
-            onReorder={handleReorder}
-            onConvert={handleImageToPdf}
-            onClear={handleClear}
-            onAddMore={triggerAddMore}
-            isProcessing={status === AppStatus.PROCESSING}
-            result={result}
-            progress={progress}
-            progressMessage={progressMessage}
-            error={error}
-          />
-        );
-      case 'split':
-        return (
-          <SplitDashboard
-            file={files[0]}
-            onRemoveFile={() => setFiles([])}
-            onExtract={handleSplitExtract}
-            onClear={handleClear}
-            onPasswordSubmit={(pwd) => handlePasswordSubmit(files[0].id, pwd)}
-            isProcessing={status === AppStatus.PROCESSING}
-            result={result}
-            error={error}
-          />
-        );
-      case 'compress':
-        return (
-          <CompressDashboard
-            file={files[0]}
-            onRemoveFile={() => setFiles([])}
-            onCompress={handleCompress}
-            onClear={handleClear}
-            onPasswordSubmit={(pwd) => handlePasswordSubmit(files[0].id, pwd)}
-            isProcessing={status === AppStatus.PROCESSING}
-            result={result}
-            progress={progress}
-            progressMessage={progressMessage}
-            error={error}
-          />
-        );
-      case 'pdf-to-image':
-        return (
-          <PdfToImageDashboard
-            file={files[0]}
-            onRemoveFile={() => setFiles([])}
-            onConvert={handlePdfToImage}
-            onClear={handleClear}
-            onPasswordSubmit={(pwd) => handlePasswordSubmit(files[0].id, pwd)}
-            isProcessing={status === AppStatus.PROCESSING}
-            result={result}
-            progress={progress}
-            progressMessage={progressMessage}
-            error={error}
-          />
-        );
-      case 'view':
-        return (
-          <PdfPreviewModal
-            file={files[0]}
-            onClose={handleClear}
-          />
-        );
-      case 'pdf-to-word':
-      case 'pdf-to-excel':
-      case 'pdf-to-ppt':
-      case 'word-to-pdf':
-      case 'excel-to-pdf':
-      case 'ppt-to-pdf':
-        let target = 'pdf';
-        if (activeTool === 'pdf-to-word') target = 'word';
-        if (activeTool === 'pdf-to-excel') target = 'excel';
-        if (activeTool === 'pdf-to-ppt') target = 'ppt';
-
-        return (
-          <ConversionDashboard
-            file={files[0]}
-            targetFormat={target}
-            onRemoveFile={() => setFiles([])}
-            onConvert={handleConvert}
-            onClear={handleClear}
-            isProcessing={status === AppStatus.PROCESSING}
-            result={result}
-            progress={progress}
-            progressMessage={progressMessage}
-            error={error}
-          />
-        );
-      default:
-        return null;
-    }
-  };
+  // Wrapper for Hero to handle file selection
+  const HeroWrapper = ({ tool }: { tool: ToolMode }) => (
+    <Hero
+      mode={tool}
+      onFilesSelect={handleFilesSelect}
+      isProcessing={status === AppStatus.PROCESSING}
+      error={error}
+    />
+  );
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col font-sans transition-colors duration-300 relative">
@@ -553,26 +451,142 @@ const App: React.FC = () => {
           onChange={handleHiddenInputChange}
         />
 
-        {/* Render logic */}
+        <Routes>
+          <Route path="/" element={<Home onSelectTool={handleToolSelect} />} />
 
-        {activeTool === 'home' ? (
-          <Home onSelectTool={handleToolSelect} />
-        ) : (
-          <>
-            {files.length === 0 && !result ? (
-              <Hero
-                mode={activeTool}
-                onFilesSelect={handleFilesSelect}
-                isProcessing={status === AppStatus.PROCESSING}
+          <Route path="/merge" element={
+            files.length === 0 && !result ? <HeroWrapper tool="merge" /> : (
+              <Dashboard
+                files={files}
+                onRemoveFile={handleRemoveFile}
+                onReorder={handleReorder}
+                onMerge={handleMerge}
+                onClear={handleClear}
+                onAddMore={triggerAddMore}
+                onPasswordSubmit={handlePasswordSubmit}
+                isMerging={status === AppStatus.PROCESSING}
+                result={result}
+                progress={progress}
+                progressMessage={progressMessage}
                 error={error}
               />
-            ) : (
-              renderTool()
-            )}
-          </>
-        )}
+            )
+          } />
+
+          <Route path="/image-to-pdf" element={
+            files.length === 0 && !result ? <HeroWrapper tool="image-to-pdf" /> : (
+              <ImageToPdfDashboard
+                files={files}
+                onRemoveFile={handleRemoveFile}
+                onReorder={handleReorder}
+                onConvert={handleImageToPdf}
+                onClear={handleClear}
+                onAddMore={triggerAddMore}
+                isProcessing={status === AppStatus.PROCESSING}
+                result={result}
+                progress={progress}
+                progressMessage={progressMessage}
+                error={error}
+              />
+            )
+          } />
+
+          <Route path="/split" element={
+            files.length === 0 && !result ? <HeroWrapper tool="split" /> : (
+              <SplitDashboard
+                file={files[0]}
+                onRemoveFile={() => setFiles([])}
+                onExtract={handleSplitExtract}
+                onClear={handleClear}
+                onPasswordSubmit={(pwd) => handlePasswordSubmit(files[0].id, pwd)}
+                isProcessing={status === AppStatus.PROCESSING}
+                result={result}
+                error={error}
+              />
+            )
+          } />
+
+          <Route path="/compress" element={
+            files.length === 0 && !result ? <HeroWrapper tool="compress" /> : (
+              <CompressDashboard
+                file={files[0]}
+                onRemoveFile={() => setFiles([])}
+                onCompress={handleCompress}
+                onClear={handleClear}
+                onPasswordSubmit={(pwd) => handlePasswordSubmit(files[0].id, pwd)}
+                isProcessing={status === AppStatus.PROCESSING}
+                result={result}
+                progress={progress}
+                progressMessage={progressMessage}
+                error={error}
+              />
+            )
+          } />
+
+          <Route path="/pdf-to-image" element={
+            files.length === 0 && !result ? <HeroWrapper tool="pdf-to-image" /> : (
+              <PdfToImageDashboard
+                file={files[0]}
+                onRemoveFile={() => setFiles([])}
+                onConvert={handlePdfToImage}
+                onClear={handleClear}
+                onPasswordSubmit={(pwd) => handlePasswordSubmit(files[0].id, pwd)}
+                isProcessing={status === AppStatus.PROCESSING}
+                result={result}
+                progress={progress}
+                progressMessage={progressMessage}
+                error={error}
+              />
+            )
+          } />
+
+          <Route path="/view" element={
+            files.length === 0 && !result ? <HeroWrapper tool="view" /> : (
+              <PdfPreviewModal
+                file={files[0]}
+                onClose={handleClear}
+              />
+            )
+          } />
+
+          {/* Conversion Routes */}
+          {['pdf-to-word', 'pdf-to-excel', 'pdf-to-ppt', 'word-to-pdf', 'excel-to-pdf', 'ppt-to-pdf'].map(tool => (
+            <Route key={tool} path={`/${tool}`} element={
+              files.length === 0 && !result ? <HeroWrapper tool={tool as ToolMode} /> : (
+                <ConversionDashboard
+                  file={files[0]}
+                  targetFormat={
+                    tool === 'pdf-to-word' ? 'word' :
+                      tool === 'pdf-to-excel' ? 'excel' :
+                        tool === 'pdf-to-ppt' ? 'ppt' : 'pdf'
+                  }
+                  onRemoveFile={() => setFiles([])}
+                  onConvert={handleConvert}
+                  onClear={handleClear}
+                  isProcessing={status === AppStatus.PROCESSING}
+                  result={result}
+                  progress={progress}
+                  progressMessage={progressMessage}
+                  error={error}
+                />
+              )
+            } />
+          ))}
+
+          {/* Catch all redirect */}
+          <Route path="*" element={<Navigate to="/" replace />} />
+
+        </Routes>
       </div>
     </div>
+  );
+};
+
+const App: React.FC = () => {
+  return (
+    <BrowserRouter>
+      <AppContent />
+    </BrowserRouter>
   );
 };
 

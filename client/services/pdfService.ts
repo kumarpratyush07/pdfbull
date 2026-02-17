@@ -182,20 +182,27 @@ export const convertPdfToImages = async (
 /**
  * Converts images to PDF.
  */
+// Image settings interface (can import from somewhere else ideally, but defining loose here)
+interface ImageToPdfSettings {
+  // define properties if known, or use any for now
+  pageSize?: string;
+  margin?: number;
+  [key: string]: any;
+}
+
 export const convertImagesToPdf = async (
   files: UploadedFile[],
+  settings: ImageToPdfSettings,
   onProgress?: (percent: number, message: string) => void
 ): Promise<{ data: Blob, fileName: string }> => {
   const formData = new FormData();
   files.forEach(f => formData.append('files', uploadedFileToFile(f)));
+  // TODO: Send settings to backend
 
   const result = await performApiRequest('/image-to-pdf', formData, onProgress);
   return { data: result.data as Blob, fileName: result.fileName };
 };
 
-// Functions not used by backend but maybe needed to keep TS happy if imported elsewhere:
-export const checkForEncryption = async () => false; // Backend handles it or fails
-export const validatePassword = async () => true; // Backend handles
-export const getPageCount = async () => 1; // Not needed for backend ops usually, or handled there.
-// If UI needs it for display `split` ranges, we might need a /scan endpoint.
-// But for now, returning dummy.
+export const checkForEncryption = async (data?: any) => false;
+export const validatePassword = async (data?: any, password?: string) => true;
+export const getPageCount = async (data?: any, password?: string) => 1;
