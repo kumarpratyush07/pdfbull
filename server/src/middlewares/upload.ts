@@ -1,7 +1,7 @@
 import multer from 'multer';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
-import { config } from '../config/env';
+import { config } from '../config';
 import { AppError } from './errorHandler';
 
 const storage = multer.diskStorage({

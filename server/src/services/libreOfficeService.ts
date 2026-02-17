@@ -2,7 +2,7 @@ import { exec } from 'child_process';
 import util from 'util';
 import path from 'path';
 import fs from 'fs-extra';
-import { config } from '../config/env';
+import { config } from '../config';
 import { logger } from '../utils/logger';
 import { AppError } from '../middlewares/errorHandler';
 import { PDFDocument } from 'pdf-lib';

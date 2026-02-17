@@ -1,7 +1,7 @@
 import path from 'path';
 import fs from 'fs-extra';
 import { v4 as uuidv4 } from 'uuid';
-import { config } from '../config/env';
+import { config } from '../config';
 
 export const getTempFilePath = (extension: string = '') => {
     const fileName = `${uuidv4()}${extension.startsWith('.') ? extension : `.${extension}`}`;
